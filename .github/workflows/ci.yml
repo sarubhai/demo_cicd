@@ -23,5 +23,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{secrets.DOCKERHUB_USERNAME}}/demo:latest
-            ${{secrets.DOCKERHUB_USERNAME}}/demo:${{ github.sha }}
+            ${{secrets.DOCKERHUB_USERNAME}}/demo-cicd:latest
+            ${{secrets.DOCKERHUB_USERNAME}}/demo-cicd:${{ github.sha }}
