@@ -1,0 +1,48 @@
+name: CI/CD
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    name: Build and Push Docker image to Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          repository: sarubhai/demo_cicd
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{secrets.DOCKERHUB_USERNAME}}
+          password: ${{secrets.DOCKERHUB_TOKEN}}
+
+      - name: Build and Push Docker image to Repository
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{secrets.DOCKERHUB_USERNAME}}/demo-cicd:latest
+            ${{secrets.DOCKERHUB_USERNAME}}/demo-cicd:${{ github.sha }}
+      
+      - name: Modify deployment.yml with the latest image & push to deploy branch
+        run: |
+          git fetch origin deploy:deploy
+          git checkout main
+          git checkout -b new-deployment-configs
+          IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/demo-cicd:${{ github.sha }}"
+          sed -i "s|image:.*|image: ${IMAGE_TAG}|g" kubernetes/deployment.yaml
+          git config --local user.name 'GitHub Action'
+          git config --local user.email 'action@github.com'
+          dt=$(date '+%Y-%m-%d')
+          git add -A
+          git commit -m "Auto Deployment - $dt"
+          git push origin new-deployment-configs
+          gh pr create --base deploy --head new-deployment-configs --title "Auto Deployment - $dt" --body "PR to update the deployment config with latest image."
+          gh pr merge --merge --delete-branch
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
